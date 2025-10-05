@@ -1,9 +1,39 @@
-class Manager {
+#include <string>
+
+
+namespace df {
+
+	class Manager {
+	private:
+		std::string m_type; // Manager type identifier
+		bool m_is_started; // True when started successfully
+
+
 	protected:
-		bool started = false;
+		// Set type identifier of Manager 
+		void setType(std::string type);
+
+
 	public:
-		virtual ~Manager() = default;
+		Manager();
+		virtual ~Manager();
+
+
+		// Get type identifier of Manager.
+		std::string getType() const;
+
+
+		// Startup Manager. Return 0 if ok, else negative number.
 		virtual int startUp();
+
+
+		// Shutdown Manager.
 		virtual void shutDown();
-		virtual bool isStarted() const { return started; }
-};
+
+
+		// Return true when startUp() was executed ok, else false.
+		bool isStarted() const;
+	};
+
+
+}
