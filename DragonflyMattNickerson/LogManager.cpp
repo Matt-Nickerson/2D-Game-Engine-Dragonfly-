@@ -1,57 +1,80 @@
 #include "LogManager.h"
 #include <cstdarg>
 #include <cstdio>
-#include <iostream>
+
+namespace df {
+
+	LogManager::LogManager()
+		: m_do_flush(false), m_p_f(nullptr) {
+		setType("LogManager");
+	}
 
 
-LogManager& LogManager::getInstance() {
-	static LogManager inst;
-	return inst;
-}
+	LogManager::~LogManager() {
+		// Ensure file is closed if user forgot to call shutDown().
+		if (m_p_f) {
+			fclose(m_p_f);
+			m_p_f = nullptr;
+		}
+	}
 
 
-int LogManager::startUp(const std::string& filename) {
-	if (isStarted()) return 0;
-	m_file.open(filename.c_str(), std::ios::out | std::ios::trunc);
-	if (!m_file.is_open()) {
-		std::cerr << "[LogManager] Failed to open log file: " << filename << "";
+	LogManager& LogManager::getInstance() {
+		static LogManager single; // persists across calls
+		return single;
+	}
+
+
+	int LogManager::startUp() {
+		if (isStarted()) {
+			return 0;
+		}
+		m_p_f = fopen(LOGFILE_NAME.c_str(), "wt");
+		if (!m_p_f) {
+			// Can't open log file
 			return -1;
+		}
+		Manager::startUp();
+		writeLog("LogManager started");
+			return 0;
 	}
-	started = true;
-	log("LogManager started");
-	return 0;
-}
 
 
-void LogManager::shutDown() {
-	if (!isStarted()) return;
-	log("LogManager shutting down");
-	m_file.flush();
-	m_file.close();
-	started = false;
-}
-
-
-void LogManager::log(const std::string& message) {
-	if (m_file.is_open()) {
-		m_file << message << "";
-			m_file.flush();
+	void LogManager::shutDown() {
+		if (!isStarted()) {
+			return;
+		}
+		writeLog("LogManager shutting down");
+			if (m_p_f) {
+				fflush(m_p_f);
+				fclose(m_p_f);
+				m_p_f = nullptr;
+			}
+		Manager::shutDown();
 	}
-	else {
-		std::cerr << message << "";
+
+
+	void LogManager::setFlush(bool do_flush) { 
+		m_do_flush = do_flush; 
 	}
-}
 
 
-void LogManager::logf(const char* fmt, ...) {
-	constexpr size_t BUF = 1024;
-	char buffer[BUF];
-	va_list args; va_start(args, fmt);
-#if defined(_MSC_VER)
-	vsnprintf_s(buffer, BUF, _TRUNCATE, fmt, args);
-#else
-	vsnprintf(buffer, BUF, fmt, args);
-#endif
-	va_end(args);
-	log(std::string(buffer));
-}
+	int LogManager::writeLog(const char* fmt, ...) const {
+		if (!m_p_f) {
+			return -1;
+		}
+		va_list args;
+		va_start(args, fmt);
+		int written = vfprintf(m_p_f, fmt, args); // printf-style into FILE*
+		va_end(args);
+		if (written < 0) {
+			return -1; // vfprintf error
+		}
+		if (m_do_flush) {
+			fflush(m_p_f);
+		}
+		return written;
+	}
+
+
+} // namespace df

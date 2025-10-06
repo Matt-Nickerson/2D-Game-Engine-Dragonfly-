@@ -1,25 +1,53 @@
-#include "Manager.h"
+#include <stdio.h>
 #include <string>
-#include <fstream>
-#include <mutex>
-
-class LogManager : public Manager {
-private:
-	std::ofstream m_file;
-	std::mutex m_mtx;
-	LogManager() = default;
-public:
-	LogManager(const LogManager&) = delete;
-	LogManager& operator=(const LogManager&) = delete;
 
 
-	static LogManager& getInstance();
+// Engine includes
+#include "Manager.h"
 
 
-	int startUp(const std::string& filename = "dragonflyA.log");
-	void shutDown() override;
+namespace df {
 
 
-	void log(const std::string& message);
-	void logf(const char* fmt, ...);
-};
+	// Default logfile name
+	const std::string LOGFILE_NAME = "dragonfly.log";
+
+
+	class LogManager : public Manager {
+	private:
+		LogManager(); // Private since a singleton.
+		LogManager(LogManager const&); // Don't allow copy.
+		void operator=(LogManager const&); // Don't allow assignment.
+
+
+		bool m_do_flush; // True if flush to disk after each write.
+		FILE* m_p_f; // Pointer to logfile struct.
+
+
+	public:
+		// If logfile is open, close it.
+		~LogManager();
+
+
+		// Get the one and only instance of the LogManager.
+		static LogManager& getInstance();
+
+
+		// Start up the LogManager (open logfile "dragonfly.log").
+		int startUp();
+
+
+		// Shut down the LogManager (close logfile).
+		void shutDown();
+
+
+		// Set flush of logfile after each write.
+		void setFlush(bool do_flush = true);
+
+
+		// Write to logfile. Supports printf() formatting of strings.
+		int writeLog(const char* fmt, ...) const;
+	};
+
+
+}
