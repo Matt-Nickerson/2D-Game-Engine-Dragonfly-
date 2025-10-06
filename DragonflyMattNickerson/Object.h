@@ -1,34 +1,60 @@
 #include <string>
+
+
+// Engine includes
 #include "Vector.h"
-#include "Event.h"
+
 
 class Object {
-	static int s_next_id;
-	int m_id;
-	std::string m_type;
-	Vector m_pos;
-	bool m_marked = false;
+private:
+	int m_id; // Unique game engine defined identifier.
+	std::string m_type; // Game programmer defined type.
+	Vector m_position; // Position in game world.
+	bool m_marked = false; // For deferred deletion (engine convenience).
+
+
+	static int s_next_id; // static counter for unique ids
+
+
 public:
+	// Construct Object. Set default parameters and add to game world (WorldManager).
 	Object();
+
+
+	// Destroy Object. Remove from game world (WorldManager).
 	virtual ~Object();
 
 
-	int getId() const { return m_id; }
-	const std::string& getType() const { return m_type; }
-	void setType(const std::string& t) { m_type = t; }
+	// Set Object id.
+	void setId(int new_id);
 
 
-	const Vector& getPosition() const { return m_pos; }
-	void setPosition(const Vector& v) { m_pos = v; }
+	// Get Object id.
+	int getId() const;
 
 
-	virtual int onEvent(const Event& e); // return 1 if handled
+	// Set type identifier of Object.
+	void setType(std::string new_type);
 
 
+	// Get type identifier of Object.
+	std::string getType() const;
+
+
+	// Set position of Object.
+	void setPosition(Vector new_pos);
+
+
+	// Get position of Object.
+	Vector getPosition() const;
+
+
+	// Add/remove self to/from world explicitly (helper methods).
 	void addToWorld();
 	void removeFromWorld();
 
 
+	// Mark for deletion via WorldManager deferred removal.
 	void markForDelete();
 	bool isMarkedForDelete() const { return m_marked; }
 };
