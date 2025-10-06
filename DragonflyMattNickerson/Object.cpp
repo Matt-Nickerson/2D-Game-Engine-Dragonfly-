@@ -28,7 +28,7 @@ void Object::setPosition(Vector new_pos) { m_position = new_pos; }
 Vector Object::getPosition() const { return m_position; }
 
 
-void Object::addToWorld() { WM().addObject(this); }
+void Object::addToWorld() { WM().insertObject(this); }
 void Object::removeFromWorld() { WM().removeObject(this); }
 
 

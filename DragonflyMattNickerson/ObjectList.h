@@ -8,7 +8,7 @@ const int MAX_OBJECTS = 1000;
 class ObjectList {
 private:
 	int m_count; // Count of objects in list.
-	Object* m_p_obj[MAX_OBJECTS]; // Array of pointers to objects.
+	Object* m_p_obj[MAX_OBJECTS]{}; // Array of pointers to objects.
 
 
 public:
