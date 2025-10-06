@@ -1,19 +1,42 @@
 #include "Vector.h"
+#include <cmath>
 
 
-Vector::Vector() = default;
+Vector::Vector(float init_x, float init_y) : m_x(init_x), m_y(init_y) {}
+Vector::Vector() : m_x(0.0f), m_y(0.0f) {}
 
 
-Vector::Vector(int x, int y) : m_x(x), m_y(y) {}
+void Vector::setX(float new_x) { m_x = new_x; }
+float Vector::getX() const { return m_x; }
 
 
-int Vector::getX() const { return m_x; }
-int Vector::getY() const { return m_y; }
+void Vector::setY(float new_y) { m_y = new_y; }
+float Vector::getY() const { return m_y; }
 
 
-void Vector::setX(int x) { m_x = x; }
-void Vector::setY(int y) { m_y = y; }
-void Vector::setXY(int x, int y) { m_x = x; m_y = y; }
-Vector Vector::addXY(const Vector& x, const Vector& y) {
-    return Vector(x.getX() + y.getX(), x.getY() + y.getY());
+void Vector::setXY(float new_x, float new_y) { m_x = new_x; m_y = new_y; }
+
+
+float Vector::getMagnitude() const {
+	return std::sqrt(m_x * m_x + m_y * m_y);
+}
+
+
+void Vector::normalize() {
+	float len = getMagnitude();
+	if (len > 0.0f) {
+		m_x /= len;
+		m_y /= len;
+	}
+}
+
+
+void Vector::scale(float s) {
+	m_x *= s;
+	m_y *= s;
+}
+
+
+Vector Vector::operator+(const Vector& other) const {
+	return Vector(m_x + other.m_x, m_y + other.m_y);
 }

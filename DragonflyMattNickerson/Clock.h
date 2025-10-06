@@ -1,12 +1,24 @@
-#include <chrono>
+#include <cstdint>
 
 
-class Clock {
-	using clock = std::chrono::steady_clock;
-	clock::time_point m_prev;
-public:
-	Clock();
-	void reset();
-	long long delta(); // ms since last call and resets
-	long long split() const; // ms since last reset
-};
+namespace df {
+
+
+	class Clock {
+	private:
+		long long m_previous_time; // Previous time delta() called (in microsec).
+	public:
+		// Sets previous time to current time.
+		Clock();
+
+
+		// Resets previous time. Units are microseconds.
+		long long delta();
+
+
+		// Does not reset previous time. Units are microseconds.
+		long long split() const;
+	};
+
+
+}
