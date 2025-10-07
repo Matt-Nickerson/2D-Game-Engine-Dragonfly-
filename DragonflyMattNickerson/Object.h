@@ -53,6 +53,8 @@ public:
 	void addToWorld();
 	void removeFromWorld();
 
+	virtual int onEvent(const Event& e) { (void)e; return 0; }
+
 
 	// Mark for deletion via WorldManager deferred removal.
 	void markForDelete();
