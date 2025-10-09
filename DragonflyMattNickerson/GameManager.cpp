@@ -5,7 +5,6 @@
 #include "EventStep.h"
 #include "Clock.h"
 #include <Windows.h>
-#include <mmsystem.h>
 
 namespace df {
 
@@ -33,7 +32,6 @@ int GameManager::startUp() {
   if (isStarted()) return 0;
 
   // Improve Sleep() resolution for this process
-  timeBeginPeriod(1);
 
   game_over = false;
 
@@ -46,7 +44,6 @@ void GameManager::shutDown() {
   LogManager::getInstance().writeLog("GameManager shutting down\n");
   game_over = true;
 
-  timeEndPeriod(1);
 
   Manager::shutDown();
 }

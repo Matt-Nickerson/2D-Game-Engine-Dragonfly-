@@ -1,9 +1,10 @@
+#pragma once
 #include <string>
 
 
 // Engine includes
 #include "Vector.h"
-
+class Event;
 
 class Object {
 private:
@@ -53,7 +54,7 @@ public:
 	void addToWorld();
 	void removeFromWorld();
 
-	virtual int onEvent(const Event& e) { (void)e; return 0; }
+	virtual int onEvent(const Event& e);
 
 
 	// Mark for deletion via WorldManager deferred removal.

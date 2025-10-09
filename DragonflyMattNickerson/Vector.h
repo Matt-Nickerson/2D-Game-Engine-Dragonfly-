@@ -1,3 +1,4 @@
+#pragma once
 class Vector {
 private:
 	float m_x; // Horizontal component.

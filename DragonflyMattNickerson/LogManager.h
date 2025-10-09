@@ -1,3 +1,4 @@
+#pragma once
 #include <stdio.h>
 #include <string>
 
@@ -16,8 +17,8 @@ namespace df {
 	class LogManager : public Manager {
 	private:
 		LogManager(); // Private since a singleton.
-		LogManager(LogManager const&); // Don't allow copy.
-		void operator=(LogManager const&); // Don't allow assignment.
+		LogManager(const LogManager&) = delete; 
+		LogManager& operator=(const LogManager&) = delete; 
 
 
 		bool m_do_flush; // True if flush to disk after each write.

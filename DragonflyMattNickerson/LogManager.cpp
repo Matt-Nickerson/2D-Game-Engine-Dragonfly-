@@ -1,3 +1,4 @@
+
 #include "LogManager.h"
 #include <cstdarg>
 #include <cstdio>
@@ -25,17 +26,14 @@ namespace df {
 
 	// Start up the LogManager (open logfile "dragonfly.log").
 	int LogManager::startUp() {
-		if (isStarted()) {
-			return 0;
-		}
-		m_p_f = fopen(LOGFILE_NAME.c_str(), "wt");
-		if (!m_p_f) {
-			// Can't open log file
-			return -1;
-		}
+		if (isStarted()) return 0;
+		if (m_p_f) { fclose(m_p_f); m_p_f = nullptr; }
+
+		errno_t err = fopen_s(&m_p_f, LOGFILE_NAME.c_str(), "w");
+		if (err != 0 || !m_p_f) return -1;
+
 		Manager::startUp();
-		writeLog("LogManager started");
-			return 0;
+		return 0;
 	}
 
 	// Shut down the LogManager (close logfile).

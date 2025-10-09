@@ -1,3 +1,4 @@
+#pragma once
 #include "Manager.h"
 #include "ObjectList.h"
 #include <string>

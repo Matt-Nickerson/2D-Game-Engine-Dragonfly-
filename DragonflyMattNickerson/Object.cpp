@@ -4,6 +4,10 @@
 
 int Object::s_next_id = 0;
 
+int Object::onEvent(const Event& e) {
+	(void)e;
+	return 0;
+}
 // Create Object with default values and add to WorldManager.
 Object::Object()
 	: m_id(s_next_id++), m_type("Object"), m_position(0.0f, 0.0f) {
