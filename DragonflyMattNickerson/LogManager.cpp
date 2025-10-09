@@ -3,12 +3,11 @@
 #include <cstdio>
 
 namespace df {
-
+	// Default log file name.
 	LogManager::LogManager()
 		: m_do_flush(false), m_p_f(nullptr) {
 		setType("LogManager");
 	}
-
 
 	LogManager::~LogManager() {
 		// Ensure file is closed if user forgot to call shutDown().
@@ -18,13 +17,13 @@ namespace df {
 		}
 	}
 
-
+	// Get the one and only instance of the LogManager.
 	LogManager& LogManager::getInstance() {
 		static LogManager single; // persists across calls
 		return single;
 	}
 
-
+	// Start up the LogManager (open logfile "dragonfly.log").
 	int LogManager::startUp() {
 		if (isStarted()) {
 			return 0;
@@ -39,7 +38,7 @@ namespace df {
 			return 0;
 	}
 
-
+	// Shut down the LogManager (close logfile).
 	void LogManager::shutDown() {
 		if (!isStarted()) {
 			return;
@@ -53,12 +52,12 @@ namespace df {
 		Manager::shutDown();
 	}
 
-
+	// Set flush of logfile after each write.
 	void LogManager::setFlush(bool do_flush) { 
 		m_do_flush = do_flush; 
 	}
 
-
+	// Write to logfile. Supports printf() formatting of strings.
 	int LogManager::writeLog(const char* fmt, ...) const {
 		if (!m_p_f) {
 			return -1;
@@ -77,4 +76,4 @@ namespace df {
 	}
 
 
-} // namespace df
+}

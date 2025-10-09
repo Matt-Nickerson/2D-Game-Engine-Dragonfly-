@@ -3,6 +3,7 @@
 
 
 namespace df {
+	// Return current time in microseconds.
 	namespace {
 		inline long long nowMicros() {
 			using clock = std::chrono::steady_clock;
@@ -14,7 +15,7 @@ namespace df {
 
 	Clock::Clock() : m_previous_time(nowMicros()) {}
 
-
+	// Return time in microseconds since last call to delta() and update previous time.
 	long long Clock::delta() {
 		const long long now = nowMicros();
 		const long long dt = now - m_previous_time;
@@ -22,7 +23,7 @@ namespace df {
 		return (dt >= 0) ? dt : -1;
 	}
 
-
+	// Return time in microseconds since last call to delta() but do NOT update previous time.
 	long long Clock::split() const {
 		const long long now = nowMicros();
 		const long long dt = now - m_previous_time;

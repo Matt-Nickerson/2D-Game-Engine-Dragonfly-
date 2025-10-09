@@ -32,7 +32,7 @@ GameManager& GameManager::getInstance() {
 int GameManager::startUp() {
   if (isStarted()) return 0;
 
-  // Improve Sleep() resolution for this process (~1ms).
+  // Improve Sleep() resolution for this process
   timeBeginPeriod(1);
 
   game_over = false;
@@ -60,8 +60,8 @@ void GameManager::run() {
 
   LogManager::getInstance().writeLog("Game loop starting\n");
 
-  Clock clock;                       // microsecond timer
-  long long adjust_us = 0;           // oversleep adjustment (fine tuning)
+  Clock clock;  // microsecond timer
+  long long adjust_us = 0; // oversleep adjustment
   const long long target_us = static_cast<long long>(frame_time) * 1000LL;
 
   int step_count = 0;
@@ -69,7 +69,7 @@ void GameManager::run() {
     clock.delta(); // start timing for this iteration
 
     EventStep evt(step_count);
-    auto objs = WM().getAllObjects();                 // copy: safe for deferred deletes
+    auto objs = WM().getAllObjects();  // copy: safe for deferred deletes
     for (int i = 0; i < objs.getCount(); ++i) {
       Object* o = const_cast<Object*>(objs[i]);       // const overload returns const*
       if (o) o->onEvent(evt);
@@ -78,14 +78,14 @@ void GameManager::run() {
 
 
     // Measure loop body time and sleep remaining budget
-    long long loop_time = clock.split();              // µs since delta()
+    long long loop_time = clock.split();        
     long long intended_sleep = target_us - loop_time - adjust_us;
 
     if (intended_sleep > 0) {
       clock.delta();
-      sleepMicros(intended_sleep);                    // Sleep()
+      sleepMicros(intended_sleep); // Sleep()
       long long actual_sleep = clock.split();
-      adjust_us = actual_sleep - intended_sleep;      // fine-tune next frame
+      adjust_us = actual_sleep - intended_sleep;// next frame
       if (adjust_us < 0) adjust_us = 0;
     } else {
       adjust_us = 0;
