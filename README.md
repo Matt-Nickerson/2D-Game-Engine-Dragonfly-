@@ -1,179 +1,192 @@
-﻿
+# Dragonfly — Part A/B (Matt Nickerson)
 
-Student:  Matthew Nickerson
-Login:    mwnickerson@wpi.edu
-Course:   IMGD 3000
-Date:     9/20/25
+**Student:** Matthew Nickerson  
+**Login:** mwnickerson@wpi.edu  
+**Course:** IMGD 3000  
+**Date:** 2025-10-10
 
+---
 
-1) Platform
------------
-Primary:  Windows 10/11, x64, Visual Studio 2022 (C++17)
+## Platform
 
-No graphics or external libraries are required for Part A. All output is printed to a logfile.
+- **Primary:** Windows 10/11 (x64), Visual Studio 2022 (**C++17**)
+- **Optional cross-build:** Makefile (g++/clang, C++17)
 
+## Dependencies
 
-2) What’s Implemented (Part A Requirements)
--------------------------------------------
-Managers / lifecycle:
-- Manager (base): startup/shutdown, type id, started flag.
-- LogManager (singleton): open/close logfile, printf-style logging via writeLog(), optional flush.
-- GameManager (singleton): startup/shutdown; **game loop** that sends an EventStep to all Objects each iteration.
-- WorldManager (singleton): stores all game Objects, add/remove, list accessors, via markForDelete()+update().
+- **Part A only:** none (logging only; no graphics/input required).
+- **Display/Input (optional / Part B+):** **SFML 2.6.x or 3.x**
+  - **vcpkg (recommended):**
+    ```powershell
+    vcpkg install sfml:x64-windows
+    ```
+  - **Manual:** download SFML SDK, set *Include Directories* and *Library Directories*, and link:
+    - `sfml-graphics`, `sfml-window`, `sfml-system` (use `-d` variants for Debug builds)
+  - Place a monospace font (e.g., `df-font.ttf`) next to the executable.
 
-Core data & types:
-- Vector: 2D float vector; get/set, setXY, magnitude, normalize, scale, operator+.
-- Object (base): unique ID, type string, world position (Vector). Adds itself to the world in the base constructor, removes itself in the destructor. Virtual onEvent() hook.
-- ObjectList: fixed-capacity array of Object*; insert/remove/clear/getCount; operator[] with bounds checks.
-- Event / EventStep: base event with type string; derived step event conveys step count.
+---
 
-Testing:
-- A single test driver (main) exercises all Part A capabilities and logs PASS/FAIL lines to dragonfly.log.
+## What’s Implemented
 
+### Managers / lifecycle
 
-3) Repository Layout
---------------------
+- **Manager (base):** startup/shutdown, type id, `isStarted()`.
+- **LogManager (singleton):** open/close logfile `dragonfly.log`, printf-style `writeLog()`, optional `setFlush(true)`.
+- **GameManager (singleton):** startup/shutdown; **game loop** that each frame:
+  - Sends **EventStep** to all objects.
+  - (If enabled) calls **InputManager::getInput()**, **WorldManager::draw()**, **DisplayManager::swapBuffers()**.
+- **WorldManager (singleton):**
+  - Stores all game **Objects**
+  - **Add/remove** objects; `getAllObjects()`, `objectsOfType()`
+  - **Deferred deletion** via `markForDelete()` + `update()`
+  - **Movement**, **collision detection**, **out-of-bounds** events
+  - **Draw** in **ascending altitude**
+  - **Boundary** set/get (default 80×24)
+
+### Core data & types
+
+- **Vector:** 2D float vector; `get/set`, `setXY`, `getMagnitude`, `normalize`, `scale`, `operator+`.
+- **Object (base):**
+  - Unique **ID**, **type** string, **position** (Vector)
+  - Adds itself to world in base ctor, removes in dtor
+  - **Solidness:** `HARD`, `SOFT`, `SPECTRAL`
+  - **Altitude:** integer for draw ordering
+  - **Velocity:** `vx`, `vy`
+  - Hooks: `virtual int onEvent(const Event&)`, `virtual int draw()`
+- **ObjectList:** fixed-capacity array of `Object*`; `insert/remove/clear/getCount`; `operator[]` (const + non-const) with range checks.
+
+### Events
+
+- **Event (base):** type string getter/setter
+- **EventStep:** step count
+- **EventOut:** mover tried to leave world bounds
+- **EventCollision:** both objects + collision position
+- **EventMouse:** button pressed/released + screen location
+- **EventKeyboard:** key pressed (Windows VK_*)
+
+### Input & Display (optional / SFML)
+
+- **InputManager (singleton):** startup/shutdown; polls **keyboard & mouse**; dispatches **EventKeyboard**/**EventMouse**.
+- **DisplayManager (singleton):** startup/shutdown; **drawCh** and **drawString** at grid (x,y) with optional color & justification; **swapBuffers()**; reports pixel/char bounds.
+  - Defaults: **1024×768 px**, **80×24** cells, title “Dragonfly”, font `df-font.ttf`.
+
+---
+
+## Repository Layout
+
+```
 include/
-  Manager.h
-  LogManager.h
-  WorldManager.h
-  GameManager.h
-  Vector.h
-  Object.h
-  ObjectList.h
-  Event.h
-  EventStep.h
-  Clock.h
+  Manager.h       LogManager.h      WorldManager.h   GameManager.h
+  Vector.h        Object.h          ObjectList.h     Event.h
+  EventStep.h     EventOut.h        EventCollision.h
+  EventMouse.h    EventKeyboard.h   Clock.h
+  DisplayManager.h  InputManager.h   Color.h
 
 src/
-  Manager.cpp
-  LogManager.cpp
-  WorldManager.cpp
-  GameManager.cpp
-  Vector.cpp
-  Object.cpp
-  ObjectList.cpp
-  EventStep.cpp
+  Manager.cpp     LogManager.cpp    WorldManager.cpp GameManager.cpp
+  Vector.cpp      Object.cpp        ObjectList.cpp   EventStep.cpp
+  EventOut.cpp    EventCollision.cpp EventMouse.cpp  EventKeyboard.cpp
   Clock.cpp
-  DragonflyMattNickerson.cpp   (test driver with main())
+  DisplayManager.cpp  InputManager.cpp
 
-Makefile           
-README.txt         (this file)
-dragonfly.log      (created at runtime; logfile output)
+DragonflyMattNickerson.cpp   # test driver (main)
+Makefile
+README.md (this file)
+dragonfly.log (created at runtime)
+df-font.ttf (font for DisplayManager)
+```
 
+---
 
-4) Code Structure & Notes
--------------------------
-Managers are singletons you access via:
-  - df::LogManager::getInstance()
-  - df::GameManager::getInstance()
-  - WorldManager& WM()  // convenience free function
+## Code Structure & Notes
 
-Object lifetime:
-  - Object base ctor: assigns unique id, sets type "Object", position (0,0), and **adds to world** automatically.
-  - Object dtor: removes from world.
-  - Do NOT call addToWorld() again in derived ctors (it would double-insert).
+- **Singleton access**
+  ```cpp
+  df::LogManager::getInstance();
+  df::GameManager::getInstance();
+  WorldManager& WM(); // free convenience function
+  ```
+- **Object lifetime**
+  - Base ctor auto-adds to world; dtor removes from world.
+  - Do **not** double-insert in derived ctors.
+- **Deletion model**
+  - Call `markForDelete()`. `WorldManager::update()` removes & deletes at frame end.
+- **Movement & collisions**
+  - `WorldManager::update()` advances by velocity via `moveObject()`.
+  - **SPECTRAL** passes through (still receives **EventCollision**).
+  - **HARD/SOFT** colliding with non-spectral **blocks** movement; both get **EventCollision**.
+  - Out-of-bounds → **EventOut** and movement blocked.
+- **Draw order**
+  - Ascending **altitude** (lowest first). Ties broken deterministically (e.g., by id).
 
-World storage:
-  - WorldManager keeps two ObjectList instances:
-      m_updates   – all live objects
-      m_deletions – objects marked for deletion this frame
-  - Call markForDelete() on an Object; WorldManager::update() removes and deletes after the current loop.
+---
 
-Events:
-  - GameManager::run() creates EventStep(step_count) each iteration.
-  - It iterates a **copy** of the world list (safe for deferred deletion), calls o->onEvent(evt), then WM().update().
+## Build & Run (Visual Studio 2022)
 
-Vector math:
-  - Float-based Vector with normalize/scale/magnitude and operator+.
+1. Open the solution/project.
+2. Ensure **C++17**: *Project → C/C++ → Language → C++ Language Standard: ISO C++17*.
+3. If using Display/Input:
+   - Install SFML (vcpkg or manual link).
+   - Place `df-font.ttf` in the working directory.
+4. **Build:** `Ctrl+Shift+B`
+5. **Run tests:** `Ctrl+F5`
 
-Logging:
-  - LogManager opens "dragonfly.log" at startup and closes it at shutdown.
-  - writeLog(const char* fmt, ...) mirrors printf formatting.
-  - Optional: setFlush(true) in the test driver to see log lines appear immediately.
+**Logfile location:** working directory (see *Project → Properties → Debugging → Working Directory*). The file is `dragonfly.log`.
 
+---
 
-5) How to Build & Run (Visual Studio 2022)
-------------------------------------------
-1. Open the solution / project.
-2. Ensure the app project (with DragonflyMattNickerson.cpp) is the **Startup Project**.
-3. Build:
-   - Ctrl+Shift+B  (or Build → Build Solution)
-4. Run tests:
-   - Ctrl+F5 (Run without debugging)
+## Build & Run (Makefile, optional)
 
-Where’s the logfile?
-- Project Properties → Debugging → Working Directory (default: $(ProjectDir))
-- Open that folder; you’ll see **dragonfly.log** after running.
-
-If you turned on “Treat warnings as errors” (/WX) and see a C4996 for fopen:
-- Either use the provided fopen_s path in LogManager.cpp, or add _CRT_SECURE_NO_WARNINGS before CRT includes.
+Requirements: g++/clang with C++17.
 
 
-6) How to Build & Run (Makefile, optional)
-------------------------------------------
-Requirements: g++/clang with C++17
+## Tests (what they cover)
 
-From the repo root:
-  make            # build into bin/dragonfly
-  make run        # run the tests
-  make clean      # remove build artifacts
+The `DragonflyMattNickerson.cpp` test driver logs `[PASS]/[FAIL]` lines for:
 
-Notes:
-- The Makefile defines a small macro so fopen_s compiles under gcc/clang.
-
-
-7) What the Tests Do (and how to read them)
--------------------------------------------
-The test driver (DragonflyMattNickerson.cpp) logs a series of [PASS]/[FAIL] lines that cover:
-
-Vector
-  - default ctor, magnitude, normalize, scale, operator+, setXY
-
-Clock
-  - delta() timing (resets baseline), split() timing (non-reset)
-
-Object & ObjectList
+- **Vector:** default, magnitude, normalize, scale, `operator+`, `setXY`
+- **Clock:** `delta()` timing (resets), `split()` timing (non-reset)
+- **Object & ObjectList:**
   - unique ids, type/position get/set
-  - ObjectList insert/remove/clear/operator[]
-  - add to world (handled by Object base ctor), markForDelete + update
+  - list: insert/remove/clear/operator[]
+  - auto add (ctor), `markForDelete` + `update`
+- **WorldManager:**
+  - clear world, insert counts, `objectsOfType`
+  - explicit remove, deferred deletion
+  - **movement**, **out-of-bounds**, **collisions**
+  - **draw order by altitude**
+- **GameManager:**
+  - loop sends **EventStep** each iteration (probe object ends loop after N steps)
+- **Display/Input (smoke):**
+  - draw two frames of text and swap
+  - (optional manual) press a key/click to see input events
 
-WorldManager
-  - getAllObjects(), objectsOfType("Dummy")
-  - removeObject(), deferred deletions
+**Expected:** all tests PASS; ending with:
+```
+== TEST SUMMARY: XX passed, 0 failed ==
+```
 
-GameManager
-  - startup/shutdown messages
-  - **game loop** sends EventStep each iteration
-  - probe object ends the loop after N steps
-  - “Game loop starting” / “Game loop ended” lines appear in the log
+---
 
-Expected result: all tests PASS. The final line shows a summary:
-  == TEST SUMMARY: 26 passed, 0 failed ==
+## Known Choices / Assumptions
 
+- **Fixed timestep:** `Clock` + Windows `Sleep()` support a target frame time; loop uses microsecond timing and oversleep adjustment. Tests emphasize correctness of step events and world updates.
+- **Altitude convention:** lower altitude renders first.
+- **ObjectList capacity:** `MAX_OBJECTS = 1000`.
+- **Color:** simple RGBA helper mapped to `sf::Color`.
+- **Input VK codes:** Windows `VK_*`.
 
-8) Known Choices / Assumptions
-------------------------------
-- Fixed timestep: This submission’s GameManager loop focuses on sending EventStep each iteration. A Clock class is provided and tested. If a fixed rate (e.g., 33ms) is required, the loop can be trivially adapted with Clock + Sleep; I kept it minimal per the Part A constraints and discussion.
-- Object auto-insert: The base Object adds itself to the world. This keeps tests simple; derived ctors should NOT call addToWorld() again.
-- ObjectList capacity: MAX_OBJECTS = 1000 (static array). Operator[] throws on out-of-range.
-- Deletion model: WorldManager owns object deletion when they’re in the world and marked for delete. Objects removed from the world explicitly can be deleted by the owner (tests demonstrate both).
-- No graphics/input: Per Part A, there is no rendering or input system. All output is via logging.
+---
 
+## Quick Grading Checklist
 
-9) How to Grade Quickly
------------------------
-- Build & Run (VS2022 or make run)
-- Open **dragonfly.log**
-- Verify:
-  - “WorldManager started”, “GameManager started”
-  - PASS lines for Vector/Clock/Object/ObjectList/WorldManager
-  - “Game loop starting/ended”
-  - PASS summary at the end (0 failed)
-- Spot-check:
-  - Objects auto-add on construction (counts correct)
-  - markForDelete + update removes objects
-  - Step events reach objects each loop (StepProbe increments)
+1. Build & Run (VS2022 or `make run`).
+2. Open `dragonfly.log`.
+3. Verify:
+   - “WorldManager started”, “GameManager started”
+   - PASS lines for Vector/Clock/Object/ObjectList/World
+   - “Game loop starting/ended”
+   - Draw-order test passes
+4. Final summary: `== TEST SUMMARY: … passed, 0 failed ==`
 
-If anything fails, the log shows exactly which assertion to look at.
-
+If anything fails, the log’s assertion label points to the exact subsystem to inspect.
