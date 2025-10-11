@@ -35,4 +35,6 @@ public:
 
 	// Index operator (with bounds checking). Returns pointer to Object.
 	Object* operator[](int i);
+	const Object* operator[](int i) const;  // <-- add this
+
 };

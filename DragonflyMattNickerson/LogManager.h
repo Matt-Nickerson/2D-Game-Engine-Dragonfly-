@@ -1,9 +1,6 @@
 #pragma once
 #include <stdio.h>
 #include <string>
-
-
-// Engine includes
 #include "Manager.h"
 
 

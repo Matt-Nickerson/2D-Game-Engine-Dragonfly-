@@ -10,8 +10,15 @@ int Object::onEvent(const Event& e) {
 }
 // Create Object with default values and add to WorldManager.
 Object::Object()
-	: m_id(s_next_id++), m_type("Object"), m_position(0.0f, 0.0f) {
-	addToWorld();
+    : m_id(s_next_id++),
+    m_type("Object"),
+    m_position(0.f, 0.f),
+    m_marked(false),
+    m_solidness(Solidness::HARD),
+    m_altitude(0),
+    m_vx(0.0f),
+    m_vy(0.0f) {
+    addToWorld();
 }
 
 // Remove Object from WorldManager.
@@ -37,3 +44,16 @@ void Object::removeFromWorld() { WM().removeObject(this); }
 
 // Mark for deletion via WorldManager deferred removal.
 void Object::markForDelete() { m_marked = true; WM().markForDelete(this); }
+
+void Object::setSolidness(Solidness s) { m_solidness = s; }
+Solidness Object::getSolidness() const { return m_solidness; }
+bool Object::isSolid() const { return m_solidness != Solidness::SPECTRAL; }
+
+void Object::setAltitude(int a) { m_altitude = a; }
+int Object::getAltitude() const { return m_altitude; }
+
+void Object::setVelocityX(float vx) { m_vx = vx; }
+void Object::setVelocityY(float vy) { m_vy = vy; }
+void Object::setVelocity(float vx, float vy) { m_vx = vx; m_vy = vy; }
+float Object::getVelocityX() const { return m_vx; }
+float Object::getVelocityY() const { return m_vy; }

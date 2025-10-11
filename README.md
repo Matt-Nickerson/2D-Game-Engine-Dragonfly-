@@ -19,7 +19,7 @@ Managers / lifecycle:
 - Manager (base): startup/shutdown, type id, started flag.
 - LogManager (singleton): open/close logfile, printf-style logging via writeLog(), optional flush.
 - GameManager (singleton): startup/shutdown; **game loop** that sends an EventStep to all Objects each iteration.
-- WorldManager (singleton): stores all game Objects, add/remove, list accessors, **deferred batch deletion** via markForDelete()+update().
+- WorldManager (singleton): stores all game Objects, add/remove, list accessors, via markForDelete()+update().
 
 Core data & types:
 - Vector: 2D float vector; get/set, setXY, magnitude, normalize, scale, operator+.
@@ -57,7 +57,7 @@ src/
   Clock.cpp
   DragonflyMattNickerson.cpp   (test driver with main())
 
-Makefile           (optional build with g++/clang)
+Makefile           
 README.txt         (this file)
 dragonfly.log      (created at runtime; logfile output)
 

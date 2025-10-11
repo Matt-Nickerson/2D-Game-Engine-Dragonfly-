@@ -1,10 +1,15 @@
 #pragma once
 #include <string>
-
-
-// Engine includes
 #include "Vector.h"
-class Event;
+
+
+class Event;  
+
+enum class Solidness {
+	HARD,     
+	SOFT,     
+	SPECTRAL
+};
 
 class Object {
 private:
@@ -13,6 +18,10 @@ private:
 	Vector m_position; // Position in game world.
 	bool m_marked = false; // For deferred deletion (engine convenience).
 
+	Solidness   m_solidness{ Solidness::HARD };
+	int         m_altitude{ 0 };        
+	float       m_vx{ 0.0f };
+	float       m_vy{ 0.0f };
 
 	static int s_next_id; // static counter for unique ids
 
@@ -56,8 +65,23 @@ public:
 
 	virtual int onEvent(const Event& e);
 
+	void        setSolidness(Solidness s);
+	Solidness   getSolidness() const;
+	bool        isSolid() const;  
+
+	void        setAltitude(int a);
+	int         getAltitude() const;
+
+	void        setVelocityX(float vx);
+	void        setVelocityY(float vy);
+	void        setVelocity(float vx, float vy);
+	float       getVelocityX() const;
+	float       getVelocityY() const;
+
 
 	// Mark for deletion via WorldManager deferred removal.
 	void markForDelete();
 	bool isMarkedForDelete() const { return m_marked; }
+
+	virtual int draw() { return 0;}
 };

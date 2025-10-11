@@ -38,3 +38,8 @@ Object* ObjectList::operator[](int i) {
 	if (i < 0 || i >= m_count) throw std::out_of_range("ObjectList index out of range");
 	return m_p_obj[i];
 }
+const Object* ObjectList::operator[](int i) const {
+	if (i < 0 || i >= m_count)
+		throw std::out_of_range("ObjectList index out of range");
+	return m_p_obj[i];
+}

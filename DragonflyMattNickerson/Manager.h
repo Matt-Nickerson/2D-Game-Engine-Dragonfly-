@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+class Event;
 
 namespace df {
 
@@ -34,6 +35,10 @@ namespace df {
 
 		// Return true when startUp() was executed ok, else false.
 		bool isStarted() const;
+
+		// Handle event (default does nothing). Return 0 if ignored, else 1.
+		virtual int onEvent(const Event& e) { (void)e; return 0; }
+
 	};
 
 

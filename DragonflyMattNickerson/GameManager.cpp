@@ -4,6 +4,8 @@
 #include "WorldManager.h"
 #include "EventStep.h"
 #include "Clock.h"
+#include "DisplayManager.h"
+#include "InputManager.h"
 #include <Windows.h>
 
 namespace df {
@@ -53,45 +55,49 @@ bool GameManager::getGameOver() const { return game_over; }
 int  GameManager::getFrameTime() const { return frame_time; }
 
 void GameManager::run() {
-  if (!isStarted()) return;
+    if (!isStarted()) return;
 
-  LogManager::getInstance().writeLog("Game loop starting\n");
+    LogManager::getInstance().writeLog("Game loop starting\n");
 
-  Clock clock;  // microsecond timer
-  long long adjust_us = 0; // oversleep adjustment
-  const long long target_us = static_cast<long long>(frame_time) * 1000LL;
+    Clock clock;  // microsecond timer
+    long long adjust_us = 0; // oversleep adjustment
+    const long long target_us = static_cast<long long>(frame_time) * 1000LL;
 
-  int step_count = 0;
-  while (!game_over) {
-    clock.delta(); // start timing for this iteration
+    int step_count = 0;
+    while (!game_over) {
+        clock.delta();   // begin timing this iteration
 
-    EventStep evt(step_count);
-    auto objs = WM().getAllObjects();  // copy: safe for deferred deletes
-    for (int i = 0; i < objs.getCount(); ++i) {
-      Object* o = const_cast<Object*>(objs[i]);       // const overload returns const*
-      if (o) o->onEvent(evt);
+        InputManager::getInstance().getInput();
+        
+         EventStep evt(step_count);
+         auto objs = WorldManager::getInstance().getAllObjects();  
+         for (int i = 0; i < objs.getCount(); ++i) {
+             Object* o = const_cast<Object*>(objs[i]);              
+             if (o) o->onEvent(evt);
+         }
+         WorldManager::getInstance().update(); // deferred deletes, moves, etc.
+         WorldManager::getInstance().draw();
+         DisplayManager::getInstance().swapBuffers();
+
+        long long loop_time = clock.split();
+        long long intended_sleep = target_us - loop_time - adjust_us;
+
+        if (intended_sleep > 0) {
+            clock.delta();
+            sleepMicros(intended_sleep);
+            long long actual_sleep = clock.split();
+            adjust_us = actual_sleep - intended_sleep;   // carry oversleep to next frame
+            if (adjust_us < 0) adjust_us = 0;
+        }
+        else {
+            adjust_us = 0;                                
+        }
+
+        ++step_count;
     }
-    WM().update(); // process deletions
 
-
-    // Measure loop body time and sleep remaining budget
-    long long loop_time = clock.split();        
-    long long intended_sleep = target_us - loop_time - adjust_us;
-
-    if (intended_sleep > 0) {
-      clock.delta();
-      sleepMicros(intended_sleep); // Sleep()
-      long long actual_sleep = clock.split();
-      adjust_us = actual_sleep - intended_sleep;// next frame
-      if (adjust_us < 0) adjust_us = 0;
-    } else {
-      adjust_us = 0;
-    }
-
-    ++step_count;
-  }
-
-  LogManager::getInstance().writeLog("Game loop ended\n");
+    LogManager::getInstance().writeLog("Game loop ended\n");
 }
+
 
 } 

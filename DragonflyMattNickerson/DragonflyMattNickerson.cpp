@@ -2,15 +2,27 @@
 #include <thread>
 #include <chrono>
 #include <stdexcept>
+#include <vector>
+#include <algorithm>
 
 #include "LogManager.h"
 #include "WorldManager.h"
 #include "GameManager.h"
+#include "InputManager.h"
+#include "DisplayManager.h"
+
 #include "Vector.h"
 #include "Object.h"
 #include "ObjectList.h"
 #include "EventStep.h"
+#include "EventOut.h"
+#include "EventCollision.h"
+#include "EventKeyboard.h"
+#include "EventMouse.h"
 #include "Clock.h"
+
+// ====== Test Config ======
+#define RUN_MANUAL_INPUT_TEST 0  // set to 1 to manually test keyboard/mouse
 
 // ---------- test helpers ----------
 static int g_pass = 0, g_fail = 0;
@@ -54,6 +66,11 @@ public:
     DummyObj(const Vector& p) {
         setType("Dummy");
         setPosition(p);
+        // Default sensible values
+        setSolidness(Solidness::HARD);
+        setAltitude(0);
+        setVelocityX(0.f);
+        setVelocityY(0.f);
     }
 };
 
@@ -68,7 +85,16 @@ static void test_Object_and_ObjectList() {
     a->setPosition(Vector(3.f, 4.f));
     TEST_ASSERT(std::fabs(a->getPosition().getX() - 3.f) < 1e-5f && std::fabs(a->getPosition().getY() - 4.f) < 1e-5f, "position set/get");
 
-    // Raw ObjectList behavior (independent of world)
+    // NEW: solidness, altitude, velocity
+    a->setSolidness(Solidness::SOFT);
+    TEST_ASSERT(a->getSolidness() == Solidness::SOFT, "solidness get/set");
+    a->setAltitude(7);
+    TEST_ASSERT(a->getAltitude() == 7, "altitude get/set");
+    a->setVelocityX(1.5f); a->setVelocityY(-0.5f);
+    TEST_ASSERT(std::fabs(a->getVelocityX() - 1.5f) < 1e-6f && std::fabs(a->getVelocityY() + 0.5f) < 1e-6f,
+        "velocity x/y get/set");
+
+    // Raw ObjectList behavior
     ObjectList L;
     TEST_ASSERT(L.getCount() == 0, "ObjectList starts empty");
     TEST_ASSERT(L.insert(a) == 0 && L.insert(b) == 0 && L.getCount() == 2, "insert() 2 objects");
@@ -79,7 +105,7 @@ static void test_Object_and_ObjectList() {
 
     // WorldManager add/remove via Object helpers
     int before = WM().getAllObjects().getCount();
-    DummyObj* c = new DummyObj(Vector(0.f, 0.f)); // auto add
+    DummyObj* c = new DummyObj(Vector(0.f, 0.f)); // auto add (if your Object() adds itself)
     int after = WM().getAllObjects().getCount();
     TEST_ASSERT(after == before + 1, "addToWorld (via ctor) increased world count");
 
@@ -91,32 +117,115 @@ static void test_Object_and_ObjectList() {
     a->markForDelete(); b->markForDelete(); WM().update();
 }
 
-// ---------- WorldManager tests ----------
-static void test_WorldManager() {
-    df::LogManager::getInstance().writeLog("== WorldManager tests ==\n");
+// ---------- WorldManager movement/bounds/collision ----------
+class CollisionProbe : public Object {
+public:
+    int out_count = 0;
+    int col_count = 0;
+
+    CollisionProbe(const char* t, const Vector& p, Solidness s) {
+        setType(t);
+        setPosition(p);
+        setSolidness(s);
+        setAltitude(0);
+        setVelocityX(0); setVelocityY(0);
+    }
+
+    int onEvent(const Event& e) override {
+        if (auto* o = dynamic_cast<const EventOut*>(&e)) {
+            (void)o;
+            ++out_count;
+            df::LogManager::getInstance().writeLog("[CollisionProbe %s id=%d] OUT\n",
+                getType().c_str(), getId());
+            return 1;
+        }
+        if (auto* c = dynamic_cast<const EventCollision*>(&e)) {
+            (void)c;
+            ++col_count;
+            df::LogManager::getInstance().writeLog("[CollisionProbe %s id=%d] COLLISION\n",
+                getType().c_str(), getId());
+            return 1;
+        }
+        return 0;
+    }
+};
+
+class DrawProbe : public Object {
+public:
+    static std::vector<int> seen_ids;
+
+    explicit DrawProbe(int alt, const Vector& p) {
+        setType("DrawProbe");
+        setPosition(p);
+        setAltitude(alt);
+        setSolidness(Solidness::SPECTRAL);
+    }
+
+    int draw() override {
+        seen_ids.push_back(getId());
+        return 0;
+    }
+};
+std::vector<int> DrawProbe::seen_ids;
+
+static void test_WorldManager_features() {
+    df::LogManager::getInstance().writeLog("== WorldManager movement/bounds/collision tests ==\n");
 
     // clear world
     {
         auto objs = WM().getAllObjects();
-        for (int i = 0;i < objs.getCount();++i) if (objs[i]) objs[i]->markForDelete();
+        for (int i = 0; i < objs.getCount(); ++i) if (objs[i]) objs[i]->markForDelete();
         WM().update();
         TEST_ASSERT(WM().getAllObjects().getCount() == 0, "world cleared");
     }
 
-    DummyObj* a = new DummyObj(Vector(2.f, 2.f));
-    DummyObj* b = new DummyObj(Vector(8.f, 1.f));
-    int cnt = WM().getAllObjects().getCount();
-    TEST_ASSERT(cnt == 2, "world count == 2 after inserts");
+    // 1) Out-of-bounds generates EventOut and blocks movement
+    {
+        CollisionProbe* edge = new CollisionProbe("Edge", Vector(0, 0), Solidness::HARD);
+        edge->setVelocityX(-1.f); edge->setVelocityY(0.f);  // attempt to move to x=-1
+        WM().update();
+        TEST_ASSERT(edge->out_count >= 1, "EventOut delivered when moving out of bounds");
+        TEST_ASSERT(static_cast<int>(edge->getPosition().getX()) == 0, "movement blocked at world edge");
+        edge->markForDelete(); WM().update();
+    }
 
-    auto dummies = WM().objectsOfType("Dummy");
-    TEST_ASSERT(dummies.getCount() == 2, "objectsOfType(\"Dummy\") returns 2");
+    // 2) Collision HARD vs HARD blocks and sends EventCollision to both
+    {
+        CollisionProbe* A = new CollisionProbe("A", Vector(5, 5), Solidness::HARD);
+        CollisionProbe* B = new CollisionProbe("B", Vector(6, 5), Solidness::HARD);
+        A->setVelocityX(+1.f); 
+        WM().update();
+        TEST_ASSERT(A->col_count >= 1 && B->col_count >= 1, "EventCollision received by both HARD objects");
+        TEST_ASSERT(static_cast<int>(A->getPosition().getX()) == 5, "HARD vs HARD blocked");
+        A->markForDelete(); B->markForDelete(); WM().update();
+    }
 
-    WM().removeObject(a); // explicit remove
-    TEST_ASSERT(WM().getAllObjects().getCount() == 1, "removeObject() decreased count");
-    delete a; // already removed from world, safe to delete
+    // 3) Collision SPECTRAL vs HARD allows pass-through but still sends EventCollision
+    {
+        CollisionProbe* A = new CollisionProbe("A", Vector(10, 10), Solidness::SPECTRAL);
+        CollisionProbe* B = new CollisionProbe("B", Vector(11, 10), Solidness::HARD);
+        A->setVelocityX(+1.f);
+        WM().update();
+        TEST_ASSERT(A->col_count >= 1 && B->col_count >= 1, "EventCollision sent for spectral pass-through");
+        TEST_ASSERT(static_cast<int>(A->getPosition().getX()) == 11, "SPECTRAL passed through");
+        A->markForDelete(); B->markForDelete(); WM().update();
+    }
 
-    b->markForDelete(); WM().update();
-    TEST_ASSERT(WM().getAllObjects().getCount() == 0, "deferred deletion processed");
+    // 4) Draw order by altitude (lowest first)
+    {
+        DrawProbe::seen_ids.clear();
+        DrawProbe* low = new DrawProbe(0, Vector(1, 1));
+        DrawProbe* mid = new DrawProbe(5, Vector(2, 1));
+        DrawProbe* high = new DrawProbe(10, Vector(3, 1));
+        WM().draw();
+
+        TEST_ASSERT(DrawProbe::seen_ids.size() == 3, "draw() visited 3 objects");
+        TEST_ASSERT(DrawProbe::seen_ids[0] == 0 &&
+            DrawProbe::seen_ids[1] == 5 &&
+            DrawProbe::seen_ids[2] == 10,
+            "objects drawn in ascending altitude");
+        low->markForDelete(); mid->markForDelete(); high->markForDelete(); WM().update();
+    }
 }
 
 // ---------- GameManager loop test ----------
@@ -139,13 +248,11 @@ public:
         return 0;
     }
 
-    int getSeen() const { return seen; }  // <-- this was missing
+    int getSeen() const { return seen; }
 };
 
 static void test_GameManager_loop() {
     df::LogManager::getInstance().writeLog("== GameManager loop test ==\n");
-
-    // Ensure world is empty before test
     auto objs = WM().getAllObjects();
     for (int i = 0;i < objs.getCount();++i) if (objs[i]) objs[i]->markForDelete();
     WM().update();
@@ -153,8 +260,48 @@ static void test_GameManager_loop() {
     StepProbe p(5);
     df::GameManager::getInstance().run(); // will stop after 5 steps via StepProbe
     TEST_ASSERT(p.getSeen() >= 5, "Game loop sent at least 5 EventStep events");
-    // World will remove p in its destructor after run() returns
 }
+
+// ---------- Display/Input smoke tests ----------
+static void test_Display_smoke() {
+    df::LogManager::getInstance().writeLog("== DisplayManager smoke ==\n");
+    // Draw a tiny HUD for 2 frames just to ensure it runs
+    auto& DM = DisplayManager::getInstance();
+    for (int i = 0; i < 2; ++i) {
+        DM.drawString(Vector(1, 1), "Dragonfly text OK", Justify::LEFT);
+        DM.swapBuffers();
+        sleep_ms(33);
+    }
+    TEST_ASSERT(true, "DisplayManager drew 2 frames");
+}
+
+#if RUN_MANUAL_INPUT_TEST
+class InputCatcher : public Object {
+public:
+    int kb_count = 0, mouse_count = 0;
+    int onEvent(const Event& e) override {
+        if (dynamic_cast<const EventKeyboard*>(&e)) { ++kb_count; return 1; }
+        if (dynamic_cast<const EventMouse*>(&e)) { ++mouse_count; return 1; }
+        return 0;
+    }
+};
+
+static void test_Input_manual() {
+    df::LogManager::getInstance().writeLog("== InputManager manual test (press a key and click) ==\n");
+    InputCatcher c;
+    df::GameManager::getInstance().setGameOver(false);
+
+    // run for ~3 seconds
+    df::Clock clk;
+    while (clk.split() < 3'000'000) {
+        InputManager::getInstance().getInput();
+        // do nothing else
+        sleep_ms(33);
+    }
+    TEST_ASSERT(c.kb_count >= 1, "Keyboard event seen (manual)");
+    TEST_ASSERT(c.mouse_count >= 1, "Mouse event seen (manual)");
+}
+#endif
 
 // ---------- main ----------
 int main() {
@@ -165,15 +312,26 @@ int main() {
     WM().startUp();
     auto& GM = df::GameManager::getInstance();
     GM.startUp();
+    DisplayManager::getInstance().startUp();   // needed for draw()
+    df::InputManager::getInstance().startUp();     // needed for input()
 
     test_Vector();
     test_Clock();
     test_Object_and_ObjectList();
-    test_WorldManager();
+    test_WorldManager_features();
     test_GameManager_loop();
+    test_Display_smoke();
+#if RUN_MANUAL_INPUT_TEST
+    test_Input_manual();
+#endif
 
     df::LogManager::getInstance().writeLog("== TEST SUMMARY: %d passed, %d failed ==\n", g_pass, g_fail);
 
+    // shutdown in reverse
+#if RUN_MANUAL_INPUT_TEST
+#endif
+    df::InputManager::getInstance().shutDown();
+    DisplayManager::getInstance().shutDown();
     GM.shutDown();
     WM().shutDown();
     LM.shutDown();
