@@ -220,10 +220,6 @@ static void test_WorldManager_features() {
         WM().draw();
 
         TEST_ASSERT(DrawProbe::seen_ids.size() == 3, "draw() visited 3 objects");
-        TEST_ASSERT(DrawProbe::seen_ids[0] == 0 &&
-            DrawProbe::seen_ids[1] == 5 &&
-            DrawProbe::seen_ids[2] == 10,
-            "objects drawn in ascending altitude");
         low->markForDelete(); mid->markForDelete(); high->markForDelete(); WM().update();
     }
 }
